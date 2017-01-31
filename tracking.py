@@ -45,7 +45,7 @@ def threshold_frame(frame, background, threshold=20):
 	diff = np.array(frame, np.float32) - background
 	ret, mask = cv2.threshold(diff,threshold, 255, cv2.THRESH_BINARY)
 	# Debugging check. TODO: Remove in production.
-	if np.max(mask) >= 255.0:
+	if np.max(mask) > 255.0:
 		raise ValueError("Oops, the binary mask has written specific pixel values to be over 255.")
 	return mask
 
@@ -67,11 +67,12 @@ def main(video_file=None):
 	frame = cv2.VideoCapture(video_file)
 	## To Cut
 	new_video = cv2.VideoWriter('newvid.mp4', fourcc, 20.0,(360,640),False)
-	for i in range(1,5000):
+	for i in range(1,50):
 		ret, frame2 = frame.read()
 		frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
 		frame3 = threshold_frame(frame2, bg, 35)
-		# new_video.write(frame3)
+		print frame3.shape
+		new_video.write(frame3)
 		cv2.imshow('frame',frame3)
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
