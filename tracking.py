@@ -2,20 +2,83 @@
 [project objective here]
 Authors: Nhung Hoang and Richard Phillips
 Project Dates: 01/30/17 - 
+
+Notes:
+    Use argparse?
 '''
+
+import sys
 
 import numpy as np
 import cv2
-import sys
+import matplotlib.pyplot as plt
+import argparse
 
-def main():
-	video = cv2.VideoCapture(sys.argv[1])
-	while video.isOpened():
-		ret,frame = video.read()
+
+def averaged_background(video):
+	"""
+	:param video: cv2.VideoCapture
+	:rtype: np.array
+	"""
+	# Get video dimensions
+	width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+	height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+	average_bg = np.zeros((height,width), dtype=np.float32)
+
+	# Count frames to make sure we don't try to pull a frame that doesn't exist
+	length = video.get(cv2.CAP_PROP_FRAME_COUNT)
+	length = np.float64(min(length, 600))
+
+	for i in range(int(length)):
+		ret, frame = video.read()
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		cv2.imshow('frame',gray)
+		average_bg += np.array(gray)/length
+
+	return average_bg
+
+def threshold_frame(frame, background, threshold=20):
+	diff = np.array(frame) - background
+	ret, mask = cv2.threshold(diff,threshold, 255, cv2.THRESH_BINARY)
+	assert np.max(mask) <= 255.0
+	return mask
+
+def morph_operate(frame):
+	
+
+def main(video_file=None):
+	if video_file is None:
+		video = cv2.VideoCapture(sys.argv[1])
+	else:
+		video = cv2.VideoCapture(video_file)
+	bg = averaged_background(video)
+
+	# plt.imshow(bg,cmap='gray')
+	# plt.show()
+
+	# Grab an example frame and threshold
+	fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+	frame = cv2.VideoCapture(video_file)
+	## To Cut
+	new_video = cv2.VideoWriter('newvid.mp4', fourcc, 20.0,(360,640),False)
+	for i in range(1,5000):
+		ret, frame2 = frame.read()
+		frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+		frame3 = threshold_frame(frame2, bg, 35)
+		# new_video.write(frame3)
+		cv2.imshow('frame',frame3)
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
+
+
+	# while video.isOpened():
+	# 	ret,frame = video.read()
+	# 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	# 	cv2.imshow('frame',gray)
+	# 	if cv2.waitKey(1) & 0xFF == ord('q'):
+	# 		break
 	video.release()
 	cv2.destroyAllWindows()
-main()
+
+
+
+main("Clips/Part1.mov")
