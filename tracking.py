@@ -15,8 +15,9 @@ import matplotlib.pyplot as plt
 import argparse
 
 
-def averaged_background(video):
+def averaged_background(video, max_frames=600):
 	"""
+	Take a cv2 VideoCapture object and average out the frames over the whole video or the max_frames, whichever is smallest.
 	:param video: cv2.VideoCapture
 	:rtype: np.array
 	"""
@@ -27,7 +28,7 @@ def averaged_background(video):
 
 	# Count frames to make sure we don't try to pull a frame that doesn't exist
 	length = video.get(cv2.CAP_PROP_FRAME_COUNT)
-	length = np.float64(min(length, 600))
+	length = np.float64(min(length, max_frames))
 
 	for i in range(int(length)):
 		ret, frame = video.read()
@@ -37,13 +38,19 @@ def averaged_background(video):
 	return average_bg
 
 def threshold_frame(frame, background, threshold=20):
-	diff = np.array(frame) - background
+	"""
+	Return a binary mask for a specific frame. Frame and background should be np.array or cv.mat objects.
+	:return: np.array
+	"""
+	diff = np.array(frame, np.float32) - background
 	ret, mask = cv2.threshold(diff,threshold, 255, cv2.THRESH_BINARY)
-	assert np.max(mask) <= 255.0
+	# Debugging check. TODO: Remove in production.
+	if np.max(mask) >= 255.0:
+		raise ValueError("Oops, the binary mask has written specific pixel values to be over 255.")
 	return mask
 
-def morph_operate(frame):
-	
+# def morph_operate(frame):
+
 
 def main(video_file=None):
 	if video_file is None:
