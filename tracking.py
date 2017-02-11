@@ -67,15 +67,17 @@ def main(video_file=None):
 	frame = cv2.VideoCapture(video_file)
 	## To Cut
 	new_video = cv2.VideoWriter('newvid.mp4', fourcc, 20.0,(360,640),False)
-	for i in range(1,50):
+	while True:
 		ret, frame2 = frame.read()
-		frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-		frame3 = threshold_frame(frame2, bg, 35)
-		print frame3.shape
-		new_video.write(frame3)
-		cv2.imshow('frame',frame3)
-		if cv2.waitKey(1) & 0xFF == ord('q'):
+		if not ret:
 			break
+		else:
+			frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+			frame3 = threshold_frame(frame2, bg, 35)
+			# new_video.write(frame3)
+			cv2.imshow('frame',frame3)
+			if cv2.waitKey(1) & 0xFF == ord('q'):
+				break
 
 
 	# while video.isOpened():
