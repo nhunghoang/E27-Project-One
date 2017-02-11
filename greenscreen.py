@@ -56,8 +56,8 @@ def blackout_bg(avg_bg, thres):
 
     for i in range(150):
         ret, frame = vid.read()
-    for i in range(10):
-    #for i in range(dur):
+    # for i in range(10):
+    for i in range(dur):
         masked_frame = np.zeros((height,width, 3))
         ret, frame = vid.read()
         dist = np.linalg.norm((avg_bg-frame),axis = 2)
@@ -71,15 +71,11 @@ def blackout_bg(avg_bg, thres):
         #cv2.imshow('masked', masked_frame)
         #cv2.waitKey(0)
 
-        for h in range(height):
-            for w in range(width):
-                if (dist[h][w] < thres):
-                    masked_frame[h][w] = np.array([0,0,0])
-                else:
-                    masked_frame[h][w] = frame[h][w]
-        print "frame number: ", i
-        #cv2.imshow('masked frame', masked_frame)
-        #cv2.waitKey(0)
+
+        masked_frame[np.nonzero(dist>=thres)] = frame[np.nonzero(dist>=thres)]
+
+        # cv2.imshow('masked frame', masked_frame)
+        # cv2.waitKey(0)
 
         new_video.write(np.uint8(masked_frame))
 
@@ -99,3 +95,4 @@ def main():
         sys.exit()
 
 main()
+
