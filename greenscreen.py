@@ -33,6 +33,11 @@ def get_new_vids(vid, height, width):
           sys.exit()
     return masked_video, morphed_video
 
+# def next_position
+#
+# def already_tracking(mean, moving_objects):
+#
+
 
 def avg_background(video, max_frames = 40):
     """
@@ -57,6 +62,15 @@ def avg_background(video, max_frames = 40):
 
     return average_bg
 
+def assign_points(point, moving_objects):
+    nearest_index, nearest = 0, sys.maxint
+    moving_objects = map(lambda x:x[1][-1], moving_objects)
+    moving_objects = np.array(moving_objects)
+    point = np.array(point)
+    distances = np.sqrt(np.sum((moving_objects-point)**2,axis=1))
+    return np.argmin(distances), np.min(distances)
+
+
 
 def blackout_bg(avg_bg, thres, bg=None):
     vid = cv2.VideoCapture(sys.argv[1])
@@ -74,6 +88,10 @@ def blackout_bg(avg_bg, thres, bg=None):
     if not bg is None:
         bgvid = cv2.VideoCapture(bg)
 
+    cv2.namedWindow('Tracking')
+
+    moving_objects = []
+    obj_lst_activity = {}
 
     while True:
         masked_frame = np.zeros((height,width, 3))
@@ -88,6 +106,7 @@ def blackout_bg(avg_bg, thres, bg=None):
             if not bgret:
                 print("Background video not long enough!")
                 bg = None
+
 
         if ret:
             dist = np.linalg.norm((avg_bg-frame),axis = 2)
@@ -134,42 +153,94 @@ def blackout_bg(avg_bg, thres, bg=None):
             # Define the color white (used below).
             white = (255,255,255)
 
+            tracking = True
+            if tracking:
+                if len(contours) >= 1:
+                    # Only map contours larger than at least 80% of the largest contour. Address this in outline/overview/pdf thingy.
+                    max_area = max(map(lambda cont: cv2.contourArea(cont), contours))
 
-            if len(contours) >= 1:
-                # Only map contours larger than at least 80% of the largest contour. Address this in outline/overview/pdf thingy.
-                max_area = max(map(lambda cont: cv2.contourArea(cont), contours))
+                    for j, cont in enumerate(contours):
+                        area = cv2.contourArea(cont)
+                        # This helps us track the focus of our images.
+                        if area >= 0.45 * max_area:
+                            # Draw the contour as a colored region on the display image.
+                            cv2.drawContours( display, contours, j, ccolors[1], -1 )
 
-                for j, cont in enumerate(contours):
-                    area = cv2.contourArea(cont)
-                    # This helps us track the focus of our images.
-                    if area >= 0.45 * max_area:
-                        # Draw the contour as a colored region on the display image.
-                        cv2.drawContours( display, contours, j, ccolors[1], -1 )
+                            # Compute some statistics about this contour.
+                            info = cvk2.getcontourinfo(contours[j])
 
-                        # Compute some statistics about this contour.
-                        info = cvk2.getcontourinfo(contours[j])
+                            # Mean location and basis vectors can be useful.
+                            mu = np.array(np.round(info['mean']),dtype=int)
 
-                        # Mean location and basis vectors can be useful.
-                        mu = info['mean']
-                        b1 = info['b1']
-                        b2 = info['b2']
 
-                        # Annotate the display image with mean and basis vectors.
-                        cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
+                            b1 = info['b1']
+                            b2 = info['b2']
 
-                        (x1, y1, w1, h1) = cv2.boundingRect(cont)
-                        if not bg is None:
-                            cv2.rectangle(scene_change, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                            # If we are currently NOT tracking any moving objects
+                            if len(moving_objects)==0:
+                                # Start tracking this moving object
+                                moving_objects.append([area,[mu]])
+                                obj_lst_activity[len(moving_objects)-1] = 0
+
+                            else:
+                                # Find the closest point and the distance to that point
+                                obj, dist = assign_points(mu, moving_objects)
+                                # If it's not very close or it is pretty far away, we'll treat it like a new object
+                                if dist >= 50 or np.round(area/moving_objects[obj][0]) != 1:
+                                    moving_objects.append([area,[mu]])
+                                    obj_lst_activity[len(moving_objects)-1] = 0
+                                else:
+                                    # Otherwise, it's probably from the object with the nearest point in the last time step
+                                    # Append the new position to that object's list of positions
+                                    moving_objects[obj][0] = area
+                                    moving_objects[obj][1].append(mu)
+                                    obj_lst_activity[obj] = 0
+
+                            # Drawing lines following objects
+                            for obj,color in zip(range(len(moving_objects)),ccolors):
+
+                                # obj_lst_activity keeps track of the last time a point was added for an object.
+                                # Age this time in the line below
+                                obj_lst_activity = {key: entry + 1 for key, entry in obj_lst_activity.iteritems()}
+
+                                # If the object is still active, plot the line of its trajectory
+                                if obj_lst_activity[obj] <= 80:
+
+                                    # Enumerate through the object's past positions
+                                    for index, place in enumerate(moving_objects[obj][1]):
+
+                                        # Skip first index, as we don't know what came before that
+                                        if index != 0:
+                                            # Draw line between points in order. Extension of ball tracking idea found in
+                                            # blog post at http://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
+                                            cv2.line(frame, tuple(moving_objects[obj][1][index - 1]), tuple(moving_objects[obj][1][index]), color, 5)
+
+                                        # If we've been tracking this object for a while,
+                                        # forget the earliest point we tracked it at
+                                        if len(moving_objects[obj][1]) >= 30:
+                                            moving_objects[obj][1].pop()
+
+
+
+                            # Annotate the display image with mean and basis vectors.
+                            cv2.circle( display, cvk2.array2cv_int(mu), 4, (0,0,0), 1, cv2.LINE_AA )
+
+                            # Find the dimensions of a bounding rectangle around this connected component
+                            (x1, y1, w1, h1) = cv2.boundingRect(cont)
+
+                            # Draw said rectangle
+                            if not bg is None:
+                                cv2.rectangle(scene_change, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                            else:
+                                cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
                         else:
-                            cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
-                    else:
-                        # Contour area too small
-                        pass
+                            # Contour area too small
+                            pass
 
 
 
             if not bg is None:
-                cv2.imshow('Background replaced', scene_change)
+                cv2.imshow('Tracking', scene_change)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                             break
 
@@ -198,19 +269,6 @@ def main():
         else:
          masked_vid = blackout_bg(avg_bg, 30, sys.argv[2])
 
-        # video = cv2.VideoCapture(sys.argv[1])
-        # print type(video)
-        # frame = video
-        # while True:
-        #     ret, frame2 = frame.read()
-        #     if not ret:
-        #         break
-        #     else:
-        #         # frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-        #         # new_video.write(frame3)
-        #         cv2.imshow('frame',frame2)
-        #         if cv2.waitKey(1) & 0xFF == ord('q'):
-        #             break
 
     else:
         print "cannot open file"
@@ -218,6 +276,7 @@ def main():
 
 # sys.argv.append('walking_down.mov')
 sys.argv.append('multiple_people.mp4')
+# sys.argv.append('Clips/Part1.mov')
 # sys.argv.append('horrifyinggopro.mp4')
 
 main()
