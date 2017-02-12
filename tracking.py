@@ -91,4 +91,5 @@ def main(video_file=None):
 
 
 
-main("Clips/Part1.mov")
+# main("/Users/Richard/PycharmProjects/ComputerVision/Proj1/E27-Project-One/walking.mp4")
+main('Clips/Part1.mov')
