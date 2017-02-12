@@ -143,11 +143,12 @@ def blackout_bg(avg_bg, thres, bg=None):
                         # Contour area too small
                         pass
 
+
             if not bg is None:
                 # If you have a replacement background, replace the background?
                 scene_change = np.zeros((height,width, 3), np.uint8)
-                scene_change[np.nonzero(dist>=thres)] = frame[np.nonzero(dist>=thres)]
-                scene_change[np.nonzero(dist<thres)] = bg[np.nonzero(dist<thres)]
+                scene_change[np.nonzero(morph_masked)] = frame[np.nonzero(morph_masked)]
+                scene_change[np.nonzero(morph_masked)] = bg[np.nonzero(morph_masked)]
 
                 cv2.imshow('Background replaced', scene_change)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
