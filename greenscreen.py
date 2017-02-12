@@ -71,11 +71,24 @@ def blackout_bg(avg_bg, thres, bg=None):
         ret, frame = vid.read()
     # for i in range(10):
 
+    if not bg is None:
+        bgvid = cv2.VideoCapture(bg)
 
 
     while True:
         masked_frame = np.zeros((height,width, 3))
         ret, frame = vid.read()
+
+        if not bg is None:
+            # If you have a replacement background, replace the background?
+            scene_change = np.zeros((height,width, 3), np.uint8)
+            bgret, bgframe = bgvid.read()
+            bgheight, bgwidth, bgret = bgframe.shape
+            # print bgheight, bgwidth
+            if not bgret:
+                print("Background video not long enough!")
+                bg = None
+
         if ret:
             dist = np.linalg.norm((avg_bg-frame),axis = 2)
 
@@ -91,7 +104,14 @@ def blackout_bg(avg_bg, thres, bg=None):
             morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_OPEN, np.ones((7,7),np.uint8))
             # Connect body parts
             morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_CLOSE, np.ones((16,16),np.uint8))
-            morph_masked = np.array((morph_masked),dtype=np.float32)
+            morph_masked = np.array((morph_masked), dtype=np.float32)
+
+
+            if not bg is None:
+                # Background replacement
+                scene_change[np.nonzero(morph_masked)] = frame[np.nonzero(morph_masked)]
+                scene_change[np.nonzero(0==morph_masked)] = bgframe[np.nonzero(0==morph_masked)]
+
 
             # CCA to find contours
             morph_masked2 = copy.deepcopy(np.array(morph_masked, dtype=np.uint8))
@@ -138,18 +158,17 @@ def blackout_bg(avg_bg, thres, bg=None):
                         cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
 
                         (x1, y1, w1, h1) = cv2.boundingRect(cont)
-                        cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                        if not bg is None:
+                            cv2.rectangle(scene_change, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                        else:
+                            cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
                     else:
                         # Contour area too small
                         pass
 
 
-            if not bg is None:
-                # If you have a replacement background, replace the background?
-                scene_change = np.zeros((height,width, 3), np.uint8)
-                scene_change[np.nonzero(morph_masked)] = frame[np.nonzero(morph_masked)]
-                scene_change[np.nonzero(morph_masked)] = bg[np.nonzero(morph_masked)]
 
+            if not bg is None:
                 cv2.imshow('Background replaced', scene_change)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                             break
@@ -174,10 +193,10 @@ def main():
     if video.isOpened():
         avg_bg = avg_background(video)
         video.release()
-        # if len(sys.argv)>1:
-        #     masked_vid = blackout_bg(avg_bg, 30)
-        # else:
-        masked_vid = blackout_bg(avg_bg, 30, cv2.imread(sys.argv[2],1))
+        if len(sys.argv)>1:
+            masked_vid = blackout_bg(avg_bg, 30)
+        else:
+         masked_vid = blackout_bg(avg_bg, 30, sys.argv[2])
 
         # video = cv2.VideoCapture(sys.argv[1])
         # print type(video)
@@ -199,7 +218,7 @@ def main():
 
 # sys.argv.append('walking_down.mov')
 sys.argv.append('multiple_people.mp4')
-sys.argv.append('Nepal-Mount-Everest.jpg')
+# sys.argv.append('horrifyinggopro.mp4')
 
 main()
 
