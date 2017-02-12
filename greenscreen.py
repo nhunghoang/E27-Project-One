@@ -185,8 +185,9 @@ def blackout_bg(avg_bg, thres, bg=None):
                             else:
                                 # Find the closest point and the distance to that point
                                 obj, dist = assign_points(mu, moving_objects)
-                                # If it's not very close or it is pretty far away, we'll treat it like a new object
-                                if dist >= 50 or np.round(area/moving_objects[obj][0]) != 1:
+                                # If it's not very close, it's pretty far away, or we haven't seen the object in a while
+                                #  we'll treat it like a new object
+                                if dist >= 100 or np.round(area/moving_objects[obj][0]) != 1 or obj_lst_activity[obj] >= 10:
                                     moving_objects.append([area,[mu]])
                                     obj_lst_activity[len(moving_objects)-1] = 0
                                 else:
@@ -196,15 +197,15 @@ def blackout_bg(avg_bg, thres, bg=None):
                                     moving_objects[obj][1].append(mu)
                                     obj_lst_activity[obj] = 0
 
+
+                            # obj_lst_activity keeps track of the last time a point was added for an object.
+                            # Age this time in the line below
+                            obj_lst_activity = {key: entry + 1 for key, entry in obj_lst_activity.iteritems()}
                             # Drawing lines following objects
                             for obj,color in zip(range(len(moving_objects)),ccolors):
 
-                                # obj_lst_activity keeps track of the last time a point was added for an object.
-                                # Age this time in the line below
-                                obj_lst_activity = {key: entry + 1 for key, entry in obj_lst_activity.iteritems()}
-
                                 # If the object is still active, plot the line of its trajectory
-                                if obj_lst_activity[obj] <= 80:
+                                if obj_lst_activity[obj] <= 10:
 
                                     # Enumerate through the object's past positions
                                     for index, place in enumerate(moving_objects[obj][1]):
@@ -213,12 +214,16 @@ def blackout_bg(avg_bg, thres, bg=None):
                                         if index != 0:
                                             # Draw line between points in order. Extension of ball tracking idea found in
                                             # blog post at http://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
-                                            cv2.line(frame, tuple(moving_objects[obj][1][index - 1]), tuple(moving_objects[obj][1][index]), color, 5)
+                                            line_size = min(index, 12)
+                                            cv2.line(frame, tuple(moving_objects[obj][1][index - 1]), tuple(moving_objects[obj][1][index]), color, line_size)
 
                                         # If we've been tracking this object for a while,
                                         # forget the earliest point we tracked it at
-                                        if len(moving_objects[obj][1]) >= 30:
-                                            moving_objects[obj][1].pop()
+                                    if len(moving_objects[obj][1]) >= 25:
+                                        moving_objects[obj][1] = moving_objects[obj][1][1:]
+
+
+
 
 
 
