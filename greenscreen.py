@@ -8,6 +8,30 @@ import numpy as np
 import cv2
 import cvk2
 
+def get_new_vids(vid, height, width):
+    ''' Create two new videos. There are three ways to obtain fourcc, dependent on your OS.
+        @PARAMS vid - the original video which to base the two new videos off of
+								height/width - dimensions of the original video, passed down to the new videos
+        @RETURN a video to hold the masked (threshold) format, a video to hold the morphed format
+   '''
+    try:
+      fourcc = cv2.cv.CV_FOURCC(*'XVID')
+      masked_video = cv2.VideoWriter("masked_vid.avi", fourcc, vid.get(5), (width,height))
+      morphed_video = cv2.VideoWriter("morphed_vid.avi", fourcc, vid.get(5), (width,height))
+    except:
+      try:
+        fourcc, ext = (cv2.VideoWriter_fourcc(*'DIVX'), 'avi')
+        masked_video = cv2.VideoWriter("masked_vid.avi", fourcc, vid.get(5), (width,height))
+        morphed_video = cv2.VideoWriter("morphed_vid.avi", fourcc, vid.get(5), (width,height))
+      except:
+        try:
+          fourcc = cv2.VideoWriter_fourcc(*'XVID')
+          masked_video = cv2.VideoWriter("masked_vid.avi", fourcc, vid.get(5), (width,height))
+          morphed_video = cv2.VideoWriter("morphed_vid.avi", fourcc, vid.get(5), (width,height))
+        except:
+          print "Three attempts at initializing fourcc failed. Check OS."
+          sys.exit()
+    return masked_video, morphed_video
 
 
 def avg_background(video, max_frames = 40):
@@ -33,29 +57,15 @@ def avg_background(video, max_frames = 40):
 
     return average_bg
 
+
 def blackout_bg(avg_bg, thres):
     vid = cv2.VideoCapture(sys.argv[1])
     dur = int(vid.get(7))
     print 'dur: ', dur
     height, width, ret = avg_bg.shape
 
-		#fourcc options
+    masked_video_writer, morphed_video_writer = get_new_vids(vid, height, width)
 
-    fourcc = 0
-    try:
-      fourcc = cv2.cv.CV_FOURCC(*'XVID')
-      new_video = cv2.VideoWriter("blackout_vid.avi", fourcc, vid.get(5)/10, (width,height))
-    except:
-      try:
-        fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
-        new_video = cv2.VideoWriter("blackout_vid.avi", fourcc, vid.get(5)/10, (width,height))
-      except:
-        try:
-          fourcc = cv2.VideoWriter_fourcc('X','V','I','D')
-          new_video = cv2.VideoWriter("blackout_vid.avi", fourcc, vid.get(5)/10, (width,height))
-        except:
-          print "Three attempts are initializing fourcc failed. Check OS."
-          sys.exit()
 
     for i in range(120):
         ret, frame = vid.read()
@@ -74,10 +84,8 @@ def blackout_bg(avg_bg, thres):
 
             # Morphology stuff
             morph_masked = np.array(morph_masked, dtype=np.float32)
-
             # Get rid of dots & speckles
             morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_OPEN, np.ones((7,7),np.uint8))
-
             # Connect body parts
             morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_CLOSE, np.ones((16,16),np.uint8))
             morph_masked = np.array((morph_masked),dtype=np.float32)
@@ -136,13 +144,13 @@ def blackout_bg(avg_bg, thres):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
 
-            new_video.write(np.uint8(masked_frame))
+            masked_video_writer.write(np.uint8(masked_frame))
 
 
 
     vid.release()
-    new_video.release()
-    return new_video
+    masked_video_writer.release()
+    return masked_video_writer
 
 
 
