@@ -58,7 +58,7 @@ def avg_background(video, max_frames = 40):
     return average_bg
 
 
-def blackout_bg(avg_bg, thres):
+def blackout_bg(avg_bg, thres, bg=None):
     vid = cv2.VideoCapture(sys.argv[1])
     dur = int(vid.get(7))
     print 'dur: ', dur
@@ -70,6 +70,9 @@ def blackout_bg(avg_bg, thres):
     for i in range(120):
         ret, frame = vid.read()
     # for i in range(10):
+
+
+
     while True:
         masked_frame = np.zeros((height,width, 3))
         ret, frame = vid.read()
@@ -111,38 +114,49 @@ def blackout_bg(avg_bg, thres):
             # Define the color white (used below).
             white = (255,255,255)
 
-            # Only map contours larger than at least 80% of the largest contour. Address this in outline/overview/pdf thingy.
-            max_area = max(map(lambda cont: cv2.contourArea(cont), contours))
 
-            for j, cont in enumerate(contours):
-                area = cv2.contourArea(cont)
-                if area >= 0.75 * max_area:
-                    # Draw the contour as a colored region on the display image.
-                    cv2.drawContours( display, contours, j, ccolors[1], -1 )
+            if len(contours) >= 1:
+                # Only map contours larger than at least 80% of the largest contour. Address this in outline/overview/pdf thingy.
+                max_area = max(map(lambda cont: cv2.contourArea(cont), contours))
 
-                    # Compute some statistics about this contour.
-                    info = cvk2.getcontourinfo(contours[j])
+                for j, cont in enumerate(contours):
+                    area = cv2.contourArea(cont)
+                    # This helps us track the focus of our images.
+                    if area >= 0.45 * max_area:
+                        # Draw the contour as a colored region on the display image.
+                        cv2.drawContours( display, contours, j, ccolors[1], -1 )
 
-                    # Mean location and basis vectors can be useful.
-                    mu = info['mean']
-                    b1 = info['b1']
-                    b2 = info['b2']
+                        # Compute some statistics about this contour.
+                        info = cvk2.getcontourinfo(contours[j])
 
-                    # Annotate the display image with mean and basis vectors.
-                    cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
+                        # Mean location and basis vectors can be useful.
+                        mu = info['mean']
+                        b1 = info['b1']
+                        b2 = info['b2']
 
-                    (x1, y1, w1, h1) = cv2.boundingRect(cont)
-                    cv2.rectangle(display, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
-                else:
-                    # Contour area too small
-                    pass
+                        # Annotate the display image with mean and basis vectors.
+                        cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
 
+                        (x1, y1, w1, h1) = cv2.boundingRect(cont)
+                        cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                    else:
+                        # Contour area too small
+                        pass
 
+            if not bg is None:
+                # If you have a replacement background, replace the background?
+                scene_change = np.zeros((height,width, 3), np.uint8)
+                scene_change[np.nonzero(dist>=thres)] = frame[np.nonzero(dist>=thres)]
+                scene_change[np.nonzero(dist<thres)] = bg[np.nonzero(dist<thres)]
 
+                cv2.imshow('Background replaced', scene_change)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
 
-            cv2.imshow('masked', display)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
+            else:
+                cv2.imshow('Tracking', frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
 
             masked_video_writer.write(np.uint8(masked_frame))
 
@@ -159,7 +173,10 @@ def main():
     if video.isOpened():
         avg_bg = avg_background(video)
         video.release()
-        masked_vid = blackout_bg(avg_bg, 30)
+        # if len(sys.argv)>1:
+        #     masked_vid = blackout_bg(avg_bg, 30)
+        # else:
+        masked_vid = blackout_bg(avg_bg, 30, cv2.imread(sys.argv[2],1))
 
         # video = cv2.VideoCapture(sys.argv[1])
         # print type(video)
@@ -179,7 +196,10 @@ def main():
         print "cannot open file"
         sys.exit()
 
-sys.argv.append('walking_down.mov')
+# sys.argv.append('walking_down.mov')
+sys.argv.append('multiple_people.mp4')
+sys.argv.append('Nepal-Mount-Everest.jpg')
+
 main()
 
 
