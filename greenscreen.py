@@ -1,12 +1,13 @@
 """
 comments comments comments
 """
-
+import copy
 import sys
 
 import numpy as np
 import cv2
 import cvk2
+
 
 
 def avg_background(video, max_frames = 40):
@@ -64,40 +65,24 @@ def blackout_bg(avg_bg, thres):
         ret, frame = vid.read()
         if ret:
             dist = np.linalg.norm((avg_bg-frame),axis = 2)
-            # mask = np.array([dist > thres,dist > thres,dist > thres])
-            #mask = np.reshape(mask, (height, width, 3), order = 'F')
-            #masked_frame = np.multiply(mask, frame)
 
             masked_frame[np.nonzero(dist>=thres)] = frame[np.nonzero(dist>=thres)]
-
-            # masked_frame = np.uint8(masked_frame)
-            # print frame[0][0]
-            # print mask[0][0]
-            # print masked_frame
-
-            # cv2.imshow('masked', masked_frame)
-            #
-            # cv2.waitKey(0)
 
             masked_frame = np.array(masked_frame, dtype=np.float32)
             bw = cv2.cvtColor(masked_frame, cv2.COLOR_BGR2GRAY)
             ret1, morph_masked = cv2.threshold(bw, 27, 255, cv2.THRESH_BINARY)
 
+            # Morphology stuff
             morph_masked = np.array(morph_masked, dtype=np.float32)
-            morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_OPEN, np.ones((7,7),np.uint8))
-            # morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_CLOSE, np.ones((4,4),np.uint8))
-            morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_CLOSE, np.ones((16,16),np.uint8))
 
+            # Get rid of dots & speckles
+            morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_OPEN, np.ones((7,7),np.uint8))
+
+            # Connect body parts
+            morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_CLOSE, np.ones((16,16),np.uint8))
             morph_masked = np.array((morph_masked),dtype=np.float32)
 
-            import copy
-            # ret1, morph_masked2 = cv2.threshold(np.uint8(morph_masked), 22, 255, cv2.THRESH_BINARY) #[1] because we just want the threshold, not the ret
-            # print morph_masked2.max()
-            # morph_masked= np.uint8(morph_masked)
-            # morph_masked = np.uint8(morph_masked)
-            # morph_masked = cv2.cvtColor(morph_masked, cv2.COLOR_RGB2GRAY)
-
-
+            # CCA to find contours
             morph_masked2 = copy.deepcopy(np.array(morph_masked, dtype=np.uint8))
             try :
                 image, contours, hierarchy = cv2.findContours(morph_masked2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -125,7 +110,7 @@ def blackout_bg(avg_bg, thres):
                 area = cv2.contourArea(cont)
                 if area >= 0.75 * max_area:
                     # Draw the contour as a colored region on the display image.
-                    cv2.drawContours( display, contours, j, ccolors[j % len(ccolors)], -1 )
+                    cv2.drawContours( display, contours, j, ccolors[1], -1 )
 
                     # Compute some statistics about this contour.
                     info = cvk2.getcontourinfo(contours[j])
@@ -137,12 +122,6 @@ def blackout_bg(avg_bg, thres):
 
                     # Annotate the display image with mean and basis vectors.
                     cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
-
-                    # cv2.line( display, cvk2.array2cv_int(mu), cvk2.array2cv_int(mu+2*b1),
-                    #           white, 1, cv2.LINE_AA )
-                    #
-                    # cv2.line( display, cvk2.array2cv_int(mu), cvk2.array2cv_int(mu+2*b2),
-                    #           white, 1, cv2.LINE_AA )
 
                     (x1, y1, w1, h1) = cv2.boundingRect(cont)
                     cv2.rectangle(display, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
