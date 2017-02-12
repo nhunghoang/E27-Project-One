@@ -6,6 +6,8 @@ import sys
 
 import numpy as np
 import cv2
+import cvk2
+
 
 def avg_background(video, max_frames = 40):
     """
@@ -54,7 +56,7 @@ def blackout_bg(avg_bg, thres):
           print "Three attempts are initializing fourcc failed. Check OS."
           sys.exit()
 
-    for i in range(150):
+    for i in range(120):
         ret, frame = vid.read()
     # for i in range(10):
     while True:
@@ -78,7 +80,9 @@ def blackout_bg(avg_bg, thres):
             # cv2.waitKey(0)
 
             masked_frame = np.array(masked_frame, dtype=np.float32)
-            ret1, morph_masked = cv2.threshold(masked_frame,27, 255, cv2.THRESH_BINARY)
+            bw = cv2.cvtColor(masked_frame, cv2.COLOR_BGR2GRAY)
+            ret1, morph_masked = cv2.threshold(bw, 27, 255, cv2.THRESH_BINARY)
+
             morph_masked = np.array(morph_masked, dtype=np.float32)
             morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_OPEN, np.ones((7,7),np.uint8))
             # morph_masked = cv2.morphologyEx(morph_masked,cv2.MORPH_CLOSE, np.ones((4,4),np.uint8))
@@ -94,22 +98,63 @@ def blackout_bg(avg_bg, thres):
             # morph_masked = cv2.cvtColor(morph_masked, cv2.COLOR_RGB2GRAY)
 
 
-            # print cv2.findContours(im_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            morph_masked2 = copy.deepcopy(np.array(morph_masked, dtype=np.uint8))
             try :
-                # contours, hierarchy, _ = cv2.findContours(im_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                pass
+                image, contours, hierarchy = cv2.findContours(morph_masked2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
             except:
                 # Different opencv version! See & Cite!: http://stackoverflow.com/questions/25504964/opencv-python-valueerror-too-many-values-to-unpack
-                contours, hierarchy = cv2.findContours(im_bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                contours, hierarchy = cv2.findContours(morph_masked2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 
-            #
-            # for contour in contours[0:2]:
-            #     (x, y, w, h) = cv2.boundingRect(contour)
-            #     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            # Following lines based on regions.py
+            display = np.zeros((image.shape[0], image.shape[1], 3),
+                      dtype='uint8')
 
-            cv2.imshow('masked', morph_masked)
-            if cv2.waitKey(0) & 0xFF == ord('q'):
+            # The getccolors function from cvk2 supplies a useful list
+            # of different colors to color things in with.
+            ccolors = cvk2.getccolors()
+
+            # Define the color white (used below).
+            white = (255,255,255)
+
+            # Only map contours larger than at least 80% of the largest contour. Address this in outline/overview/pdf thingy.
+            max_area = max(map(lambda cont: cv2.contourArea(cont), contours))
+
+            for j, cont in enumerate(contours):
+                area = cv2.contourArea(cont)
+                if area >= 0.75 * max_area:
+                    # Draw the contour as a colored region on the display image.
+                    cv2.drawContours( display, contours, j, ccolors[j % len(ccolors)], -1 )
+
+                    # Compute some statistics about this contour.
+                    info = cvk2.getcontourinfo(contours[j])
+
+                    # Mean location and basis vectors can be useful.
+                    mu = info['mean']
+                    b1 = info['b1']
+                    b2 = info['b2']
+
+                    # Annotate the display image with mean and basis vectors.
+                    cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
+
+                    # cv2.line( display, cvk2.array2cv_int(mu), cvk2.array2cv_int(mu+2*b1),
+                    #           white, 1, cv2.LINE_AA )
+                    #
+                    # cv2.line( display, cvk2.array2cv_int(mu), cvk2.array2cv_int(mu+2*b2),
+                    #           white, 1, cv2.LINE_AA )
+
+                    (x1, y1, w1, h1) = cv2.boundingRect(cont)
+                    cv2.rectangle(display, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                else:
+                    # Contour area too small
+                    pass
+
+
+
+
+            cv2.imshow('masked', display)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
 
             new_video.write(np.uint8(masked_frame))
