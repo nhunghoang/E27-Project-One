@@ -8,53 +8,79 @@ import numpy as np
 import cv2
 import cvk2
 
+def get_new_vids(vid, height, width):
+    ''' Create two new videos. There are three ways to obtain fourcc, dependent on your OS.
+        @PARAMS vid - the original video which to base the two new videos off of
+								height/width - dimensions of the original video, passed down to the new videos
+        @RETURN a video to hold the masked (threshold) format, a video to hold the morphed format 
+   ''' 
+    try:
+      fourcc = cv2.cv.CV_FOURCC(*'XVID')
+      masked_video = cv2.VideoWriter("masked_vid.avi", fourcc, vid.get(5), (width,height))
+      morphed_video = cv2.VideoWriter("morphed_vid.avi", fourcc, vid.get(5), (width,height))
+    except:    
+      try:            
+        fourcc, ext = (cv2.VideoWriter_fourcc(*'DIVX'), 'avi') 
+        masked_video = cv2.VideoWriter("masked_vid.avi", fourcc, vid.get(5), (width,height))
+        morphed_video = cv2.VideoWriter("morphed_vid.avi", fourcc, vid.get(5), (width,height))
+      except:
+        try:    
+          fourcc = cv2.VideoWriter_fourcc(*'XVID')
+          masked_video = cv2.VideoWriter("masked_vid.avi", fourcc, vid.get(5), (width,height))
+          morphed_video = cv2.VideoWriter("morphed_vid.avi", fourcc, vid.get(5), (width,height))
+        except:
+          print "Three attempts at initializing fourcc failed. Check OS."
+          sys.exit()
+    return masked_video, morphed_video
 
 def avg_background(video, max_frames = 40):
     """
-    Take a cv2 VideoCapture object and average out the frames over the whole video or the max_frames, whichever is smallest.
-    :param video: cv2.VideoCapture
-    :rtype: np.array
+    Average the pixels of the video frames over time
+    @PARAMS video - VideoCapture object with the frames to read
+            max_frames - max number of frames to read from video
+    @RETURN an array that represents one video frame containing the average pixel values
     """
-    # Get video dimensions
     width = int(video.get(3))
     height = int(video.get(4))
-    print "w: ", width, "h: ", height
     average_bg = np.zeros((height,width,3), dtype=np.float64)
-
-    # Count frames to make sure we don't try to pull a frame that doesn't exist
-    #length = video.get(cv2.CV_CAP_PROP_FRAME_COUNT)
     duration = int(video.get(7))
     duration = np.float64(min(duration, max_frames))
-
     for i in range(int(duration)):
             ret, frame = video.read()
             average_bg += (np.array(frame)/duration)
-
     return average_bg
 
-def blackout_bg(avg_bg, thres):
+def mask_and_morph(avg_bg, thres):
+    ''' Remove the average pixel intensities from each frame of the video, save the difference to masked_video.
+        Morph the masked_video to get rid of noise and save the result to morphed_video. 
+				@PARAMS avg_bg - the average frame from the video 
+                thres - the threshold value to apply to frames
+        @RETURN a video of after masking and a video after morphing
+    ''' 
     vid = cv2.VideoCapture(sys.argv[1])
     dur = int(vid.get(7))
-    print 'dur: ', dur
     height, width, ret = avg_bg.shape
 
-		#fourcc options
+    for i in range(dur):
+        masked_frame = np.zeros((height,width, 3))
+        ret, frame = vid.read()
+        dist = np.linalg.norm((avg_bg-frame),axis = 2)
+        mask = dist > thres
+        mask = mask[:,:,np.newaxis]
+        masked_frame = mask*frame
+        masked_video.write(np.uint8(masked_frame))
+        kernel = np.ones((10,10), np.uint8)
+        morphed_frame = cv2.erode(masked_frame, kernel, iterations = 2)
+        morphed_video.write(np.uint8(morphed_frame))
+    vid.release()
+    masked_video.release()
+    morphed_video.release()
+    return masked_video, morphed_video
 
-    fourcc = 0
-    try:
-      fourcc = cv2.cv.CV_FOURCC(*'XVID')
-      new_video = cv2.VideoWriter("blackout_vid.avi", fourcc, vid.get(5)/10, (width,height))
-    except:
-      try:
-        fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
-        new_video = cv2.VideoWriter("blackout_vid.avi", fourcc, vid.get(5)/10, (width,height))
-      except:
-        try:
-          fourcc = cv2.VideoWriter_fourcc('X','V','I','D')
-          new_video = cv2.VideoWriter("blackout_vid.avi", fourcc, vid.get(5)/10, (width,height))
-        except:
-          print "Three attempts are initializing fourcc failed. Check OS."
-          sys.exit()
+
+
+    '''Richard's code
+
 
     for i in range(120):
         ret, frame = vid.read()
@@ -159,7 +185,7 @@ def blackout_bg(avg_bg, thres):
 
             new_video.write(np.uint8(masked_frame))
 
-
+    '''
 
     vid.release()
     new_video.release()
@@ -168,11 +194,18 @@ def blackout_bg(avg_bg, thres):
 
 
 def main():
+    ''' interface for background changing
+    request = raw_input("What where would you like to go today?\n[1] space\n[2]ocean\n"
+    if request == 1:
+      new_bg = 1
+    '''
+
+
     video = cv2.VideoCapture(sys.argv[1])
     if video.isOpened():
         avg_bg = avg_background(video)
         video.release()
-        masked_vid = blackout_bg(avg_bg, 30)
+        masked_vid, morphed_vid = mask_and_morph(avg_bg, 30)
 
         # video = cv2.VideoCapture(sys.argv[1])
         # print type(video)
@@ -188,6 +221,7 @@ def main():
         #         if cv2.waitKey(1) & 0xFF == ord('q'):
         #             break
 
+    #print "Done! Go check out your new video."
     else:
         print "cannot open file"
         sys.exit()
