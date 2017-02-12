@@ -130,6 +130,7 @@ def blackout_bg(avg_bg, thres, bg=None):
                 # Background replacement
                 scene_change[np.nonzero(morph_masked)] = frame[np.nonzero(morph_masked)]
                 scene_change[np.nonzero(0==morph_masked)] = bgframe[np.nonzero(0==morph_masked)]
+                frame = scene_change
 
 
             # CCA to find contours
@@ -172,9 +173,6 @@ def blackout_bg(avg_bg, thres, bg=None):
                             # Mean location and basis vectors can be useful.
                             mu = np.array(np.round(info['mean']),dtype=int)
 
-
-                            b1 = info['b1']
-                            b2 = info['b2']
 
                             # If we are currently NOT tracking any moving objects
                             if len(moving_objects)==0:
@@ -223,10 +221,6 @@ def blackout_bg(avg_bg, thres, bg=None):
                                         moving_objects[obj][1] = moving_objects[obj][1][1:]
 
 
-
-
-
-
                             # Annotate the display image with mean and basis vectors.
                             cv2.circle( display, cvk2.array2cv_int(mu), 4, (0,0,0), 1, cv2.LINE_AA )
 
@@ -234,10 +228,8 @@ def blackout_bg(avg_bg, thres, bg=None):
                             (x1, y1, w1, h1) = cv2.boundingRect(cont)
 
                             # Draw said rectangle
-                            if not bg is None:
-                                cv2.rectangle(scene_change, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
-                            else:
-                                cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+                            cv2.rectangle(frame, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+
                         else:
                             # Contour area too small
                             pass
@@ -269,10 +261,10 @@ def main():
     if video.isOpened():
         avg_bg = avg_background(video)
         video.release()
-        if len(sys.argv)>1:
+        if len(sys.argv) == 2:
             masked_vid = blackout_bg(avg_bg, 30)
         else:
-         masked_vid = blackout_bg(avg_bg, 30, sys.argv[2])
+            masked_vid = blackout_bg(avg_bg, 30, sys.argv[2])
 
 
     else:
@@ -280,9 +272,10 @@ def main():
         sys.exit()
 
 # sys.argv.append('walking_down.mov')
-sys.argv.append('multiple_people.mp4')
+# sys.argv.append('multiple_people.mp4')
+sys.argv.append('chair.mp4')
 # sys.argv.append('Clips/Part1.mov')
-# sys.argv.append('horrifyinggopro.mp4')
+sys.argv.append('horrifyinggopro.mp4')
 
 main()
 
