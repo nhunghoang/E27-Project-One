@@ -151,9 +151,6 @@ def blackout_bg(avg_bg, thres, bg=None):
             # of different colors to color things in with.
             ccolors = cvk2.getccolors()
 
-            # Define the color white (used below).
-            white = (255,255,255)
-
             tracking = True
             if tracking:
                 if len(contours) >= 1:
