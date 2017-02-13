@@ -89,7 +89,6 @@ def create_mask(avg_bg, frame, thres):
 def morph_ops(frame, mask):
     """
     Performs morphological ops (closing & opening) on image to clean up mask
-    
     """
     mask = np.array(mask, dtype=np.float)
     # Get rid of dots & speckles
@@ -97,7 +96,6 @@ def morph_ops(frame, mask):
     # Connect body parts
     morphed_mask = cv2.morphologyEx(opened_mask,cv2.MORPH_CLOSE, np.ones((16,16),np.uint8))
     
-    morphed_mask = morphed_mask[:,:,np.newaxis]
     return morphed_mask
     
 def edit_video(orig_vid, avg_bg, thres, new_bg=None):
@@ -139,7 +137,7 @@ def edit_video(orig_vid, avg_bg, thres, new_bg=None):
             
             # Morphology: perform morphological ops on mask, apply mask, add to video
             morphed_mask = morph_ops(frame, mask)
-            morphed_frame = morphed_mask * frame
+            morphed_frame = morphed_mask[:,:,np.newaxis] * frame
             morphed_video_writer.write(np.uint8(morphed_frame))
 
             # Green Screen
@@ -233,17 +231,17 @@ def edit_video(orig_vid, avg_bg, thres, new_bg=None):
 
 def main():
     vid = int(raw_input("Welcome! Which video do you want to change?\n[1] One Person\n[2] Two People\n"))
-    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform 1 and change background to ocean\n[3] Perform 1 and change background to snowy mountain\n")) 
+    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform [1] and change background to ocean\n[3] Peform 1 and change background to ___\n")) 
     if vid == 1:
         video = 'nhungwave.mp4'
     else:
-        video = 'dan&nhung.mp4'
+        video = 'walkingdown.mov'
     avg_bg = avg_background(video)
     if pref == 1:
         masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30)
     if pref == 2:
         masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
     if pref == 3:
-        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'snow.mp4')
+        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
 
 main()
