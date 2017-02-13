@@ -208,9 +208,9 @@ def edit_video(orig_vid, old_bg, thres, new_bg=None):
 
 def main():
     vid = int(raw_input("Welcome! Which video do you want to change?\n[1] One Person\n[2] Two People\n"))
-    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform [1] and change background to ocean\n[3] Peform 1 and change background to ___\n")) 
+    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform 1 and change background to ocean\n[3] Perform 1 and change background to snow_mountain\n")) 
     if vid == 1:
-        video = 'nhungwave.mp4'
+        video = 'walking_down.mov'
     else:
         video = 'dan&nhung.mp4'
     avg_bg = avg_background(video)
@@ -219,7 +219,7 @@ def main():
     if pref == 2:
         masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
     if pref == 3:
-        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
+        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'snow.mp4') 
 
 main()
 
