@@ -244,6 +244,6 @@ def main():
     if pref == 2:
         masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
     if pref == 3:
-        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
+        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'snow.mp4')
 
 main()
