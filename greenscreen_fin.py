@@ -233,7 +233,7 @@ def edit_video(orig_vid, avg_bg, thres, new_bg=None):
 
 def main():
     vid = int(raw_input("Welcome! Which video do you want to change?\n[1] One Person\n[2] Two People\n"))
-    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform [1] and change background to ocean\n[3] Peform 1 and change background to ___\n")) 
+    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform 1 and change background to ocean\n[3] Perform 1 and change background to snowy mountain\n")) 
     if vid == 1:
         video = 'nhungwave.mp4'
     else:
