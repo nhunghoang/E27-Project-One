@@ -43,6 +43,7 @@ def avg_background(video, max_frames = 40):
     :param video: cv2.VideoCapture
     :rtype: np.array
     """
+    video = cv2.VideoCapture(video)
     # Get video dimensions
     width = int(video.get(3))
     height = int(video.get(4))
@@ -53,6 +54,7 @@ def avg_background(video, max_frames = 40):
     for i in range(int(duration)):
             ret, frame = video.read()
             average_bg += (np.array(frame)/duration)
+    video.release()
     return average_bg
 
 
@@ -65,8 +67,8 @@ def assign_points(point, moving_objects):
     return np.argmin(distances), np.min(distances)
 
 
-def edit_video(old_bg, thres, new_bg=None):
-    vid = cv2.VideoCapture(sys.argv[1])
+def edit_video(orig_vid, old_bg, thres, new_bg=None):
+    vid = cv2.VideoCapture(orig_vid)
     dur = int(vid.get(7))
     height, width, ret = old_bg.shape
     masked_video_writer, morphed_video_writer, final_video_writer = get_new_vids(vid, height, width)
@@ -205,19 +207,19 @@ def edit_video(old_bg, thres, new_bg=None):
 
 
 def main():
-    video = cv2.VideoCapture(sys.argv[1])
-    if video.isOpened():
-        avg_bg = avg_background(video)
-        video.release()
-        if len(sys.argv) == 2:
-            masked_vid, morphed_vid, final_vid = edit_video(avg_bg, 30)
-        else:
-            masked_vid, morphed_vid, final_vid = edit_video(avg_bg, 30, sys.argv[2])
+    vid = int(raw_input("Welcome! Which video do you want to change?\n[1] One Person\n[2] Two People\n"))
+    pref = int(raw_input("What do you want to do with your video?\n[1] Add threshold, morphology, CCA, and tracking to video\n[2] Perform [1] and change background to ocean\n[3] Peform 1 and change background to ___\n")) 
+    if vid == 1:
+        video = 'nhungwave.mp4'
     else:
-        print "cannot open file"
-        sys.exit()
-
-
+        video = 'dan&nhung.mp4'
+    avg_bg = avg_background(video)
+    if pref == 1:
+        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30)
+    if pref == 2:
+        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
+    if pref == 3:
+        masked_vid, morphed_vid, final_vid = edit_video(video, avg_bg, 30, 'horrgopro_14fps.avi')
 
 main()
 
